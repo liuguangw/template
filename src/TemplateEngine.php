@@ -129,6 +129,11 @@ class TemplateEngine
             mkdir($distFileDir, 0755, true);
         }
         // start
+        // 处理模板中layout定义
+        // /
+        // /{layout main}
+        // /
+        $this->processLayoutTag($content);
         // 处理include合并
         // /
         // /{include mobile/header}
@@ -265,6 +270,31 @@ class TemplateEngine
     }
 
     /**
+     * 处理layout定义
+     *
+     * @param string $content
+     *            原模板内容
+     * @return void
+     */
+    protected function processLayoutTag(string &$content): void
+    {
+        $pattern = $this->getTagPattern('layout\s+(.+?)');
+        $newLayout = null;
+        $content = preg_replace_callback($pattern, function ($match) use (&$newLayout) {
+            $newLayout = $match[1];
+            return '';
+        }, $content);
+        if ($newLayout !== null) {
+            $this->setLayout($newLayout);
+            $layoutContent = @file_get_contents($this->layoutFilePath);
+            if ($layoutContent === false) {
+                throw new TemplateException('读取布局源文件' . $this->layoutFilePath . '失败');
+            }
+            $content = str_replace('{content}', $content, $layoutContent);
+        }
+    }
+
+    /**
      * 处理include标签
      *
      * @param string $content
@@ -292,7 +322,7 @@ class TemplateEngine
         $engineClass = get_class($this);
         $content = preg_replace_callback($pattern, function ($match) use ($baseDir, $cacheDir, $useCache, $engineClass) {
             $varName = '$subTemplate_' . substr(md5($match[1]), 0, 6);
-            return '<?php ' . $varName . ' = new \\' . $engineClass . '(' . var_export($baseDir,true) . ', '. var_export($cacheDir,true) . ', ' . ($useCache ? 'true' : 'false') . ');
+            return '<?php ' . $varName . ' = new \\' . $engineClass . '(' . var_export($baseDir, true) . ', ' . var_export($cacheDir, true) . ', ' . ($useCache ? 'true' : 'false') . ');
 ' . $varName . '->setTemplateName(\'' . $match[1] . '\');
 include ' . $varName . '->getTargetPath(); ?>';
         }, $content);
