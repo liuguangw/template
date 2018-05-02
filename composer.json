@@ -1,0 +1,33 @@
+{
+	"name": "liuguang/mvc",
+	"description": "a php template engine",
+	"type": "library",
+	"homepage": "http://blog.liuguangw.com",
+	"license": "MIT",
+	"require": {
+		"php": ">=7.1"
+	},
+	"keywords": [
+		"php7",
+		"template"
+	],
+	"authors": [
+		{
+			"name": "liuguang",
+			"email": "67579722@qq.com",
+			"homepage": "http://blog.liuguangw.com",
+			"role": "Developer"
+		}
+	],
+	"support": {
+		"email": "67579722@qq.com"
+	},
+	"autoload": {
+		"psr-4": {
+			"liuguang\\template\\" : "src/"
+		}
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^7.0"
+	}
+}
