@@ -32,6 +32,10 @@ class TemplateTest extends BaseCase
                 'layout1'
             ],
             [
+                'layout2',
+                'main'
+            ],
+            [
                 'block'
             ],
             [

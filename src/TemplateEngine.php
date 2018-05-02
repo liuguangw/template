@@ -285,6 +285,14 @@ class TemplateEngine
             return '';
         }, $content);
         if ($newLayout !== null) {
+            if ($this->layoutFilePath !== null) {
+                // 已经定义过layout了
+                $content = @file_get_contents($this->sourceFilePath);
+                if ($content === false) {
+                    throw new TemplateException('读取模板源文件' . $this->sourceFilePath . '失败');
+                }
+                $content = preg_replace($pattern, '', $content);
+            }
             $this->setLayout($newLayout);
             $layoutContent = @file_get_contents($this->layoutFilePath);
             if ($layoutContent === false) {
