@@ -16,7 +16,7 @@ class TemplateEngine
 
     protected $layoutDir;
 
-    protected $useCache;
+    protected $forceRebuild = false;
 
     protected $sourceFilePath;
 
@@ -46,10 +46,10 @@ class TemplateEngine
      *            模板基础目录
      * @param string $cacheDir
      *            模板缓存目录
-     * @param bool $useCache
+     * @param bool $forceRebuild
      *            是否使用已经存在的缓存
      */
-    public function __construct(string $baseDir, string $cacheDir = '', bool $useCache = true)
+    public function __construct(string $templateName, string $baseDir, string $cacheDir = '')
     {
         $this->baseDir = $baseDir;
         $this->sourceDir = $baseDir . '/./src';
@@ -59,7 +59,7 @@ class TemplateEngine
             $this->cacheDir = $cacheDir;
         }
         $this->layoutDir = $baseDir . '/./layout';
-        $this->useCache = $useCache;
+        $this->setTemplateName($templateName);
     }
 
     public function setLayout(string $layout): void
@@ -71,6 +71,11 @@ class TemplateEngine
     {
         $this->sourceFilePath = $this->sourceDir . '/./' . $templateName . $this->sourceFileSuffix;
         $this->cacheFilePath = $this->cacheDir . '/./' . $templateName . '.php';
+    }
+
+    public function setForceRebuild(bool $forceRebuild): void
+    {
+        $this->forceRebuild = $forceRebuild;
     }
 
     public function setContentType(string $contentType): void
@@ -222,7 +227,7 @@ class TemplateEngine
 
     public function getTargetPath(): string
     {
-        if (! $this->useCache) {
+        if ($this->forceRebuild) {
             $this->buildTemplate();
         } elseif (! is_file($this->cacheFilePath)) {
             $this->buildTemplate();
@@ -312,10 +317,14 @@ class TemplateEngine
     protected function processIncludeTag(string &$content): void
     {
         $pattern = $this->getTagPattern('include\s+(.+?)');
-        $subTemplate = new static($this->baseDir, $this->cacheDir, $this->useCache);
+        $baseDir = $this->baseDir;
+        $cacheDir = $this->cacheDir;
+        $forceRebuild = $this->forceRebuild;
+        $engineClass = get_class($this);
         while (preg_match($pattern, $content) != 0) {
-            $content = preg_replace_callback($pattern, function ($match) use ($subTemplate) {
-                $subTemplate->setTemplateName($match[1]);
+            $content = preg_replace_callback($pattern, function ($match) use ($baseDir, $cacheDir, $forceRebuild, $engineClass) {
+                $subTemplate = new $engineClass($match[1], $baseDir, $cacheDir);
+                $subTemplate->setForceRebuild($forceRebuild);
                 return $subTemplate->getTemplateSource();
             }, $content);
         }
@@ -326,12 +335,12 @@ class TemplateEngine
         $pattern = $this->getTagPattern('template\s+(.+?)');
         $baseDir = $this->baseDir;
         $cacheDir = $this->cacheDir;
-        $useCache = $this->useCache;
+        $forceRebuild = $this->forceRebuild;
         $engineClass = get_class($this);
-        $content = preg_replace_callback($pattern, function ($match) use ($baseDir, $cacheDir, $useCache, $engineClass) {
+        $content = preg_replace_callback($pattern, function ($match) use ($baseDir, $cacheDir, $forceRebuild, $engineClass) {
             $varName = '$subTemplate_' . substr(md5($match[1]), 0, 6);
-            return '<?php ' . $varName . ' = new \\' . $engineClass . '(' . var_export($baseDir, true) . ', ' . var_export($cacheDir, true) . ', ' . ($useCache ? 'true' : 'false') . ');
-' . $varName . '->setTemplateName(\'' . $match[1] . '\');
+            return '<?php ' . $varName . ' = new \\' . $engineClass . '( ' . var_export($match[1], true) . ', ' . var_export($baseDir, true) . ', ' . var_export($cacheDir, true) . ');
+' . $varName . '->setForceRebuild(' . ($forceRebuild ? 'true' : 'false') . ');
 include ' . $varName . '->getTargetPath(); ?>';
         }, $content);
     }

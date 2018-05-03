@@ -1,7 +1,19 @@
 <?php
+use PHPUnit\Framework\TestCase;
+use liuguang\template\TemplateEngine;
 
-class TemplateTest extends BaseCase
+class TemplateTest extends TestCase
 {
+
+    private function doTemplate(string $templateName, $layout = '')
+    {
+        $tpl = new TemplateEngine($templateName, __DIR__ . '/../template');
+        $tpl->setForceRebuild(true);
+        if ($layout != '') {
+            $tpl->setLayout($layout);
+        }
+        $this->assertFileEquals(__DIR__ . '/../template_assert/' . $templateName . '.php', $tpl->getTargetPath());
+    }
 
     public function templateProvider()
     {
