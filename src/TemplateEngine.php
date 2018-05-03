@@ -93,17 +93,6 @@ class TemplateEngine
         $this->params[$key] = $value;
     }
 
-    protected function renderHeader(): void
-    {
-        header('Content-Type: ' . $this->contentType);
-    }
-
-    protected function renderContent(): void
-    {
-        extract($this->params);
-        include $this->getTargetPath();
-    }
-
     /**
      * 获取模板源代码
      *
@@ -233,6 +222,17 @@ class TemplateEngine
             $this->buildTemplate();
         }
         return $this->cacheFilePath;
+    }
+
+    protected function renderHeader(): void
+    {
+        header('Content-Type: ' . $this->contentType);
+    }
+
+    protected function renderContent(): void
+    {
+        extract($this->params);
+        include $this->getTargetPath();
     }
 
     public function display(): void
