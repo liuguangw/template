@@ -18,6 +18,8 @@ class TemplateEngine
 
     protected $forceRebuild = false;
 
+    protected $templateName;
+
     protected $sourceFilePath;
 
     protected $cacheFilePath;
@@ -69,6 +71,7 @@ class TemplateEngine
 
     public function setTemplateName(string $templateName): void
     {
+        $this->templateName = $templateName;
         $this->sourceFilePath = $this->sourceDir . '/./' . $templateName . $this->sourceFileSuffix;
         $this->cacheFilePath = $this->cacheDir . '/./' . $templateName . '.php';
     }
@@ -104,6 +107,11 @@ class TemplateEngine
         if ($content === false) {
             throw new TemplateException('读取模板源文件' . $this->sourceFilePath . '失败');
         }
+        // 处理模板中layout定义
+        // /
+        // /{layout main}
+        // /
+        $this->processLayoutDefine($content);
         // 与布局文件合并
         if ($this->layoutFilePath !== null) {
             $layoutContent = @file_get_contents($this->layoutFilePath);
@@ -112,6 +120,11 @@ class TemplateEngine
             }
             $content = str_replace('{content}', $content, $layoutContent);
         }
+        // 处理include
+        // /
+        // /{include page_content}
+        // /
+        $this->processIncludeTag($content);
         return $content;
     }
 
@@ -123,16 +136,6 @@ class TemplateEngine
             mkdir($distFileDir, 0755, true);
         }
         // start
-        // 处理模板中layout定义
-        // /
-        // /{layout main}
-        // /
-        $this->processLayoutTag($content);
-        // 处理include合并
-        // /
-        // /{include mobile/header}
-        // /
-        $this->processIncludeTag($content);
         // 处理动态包含
         // /
         // /{template mobile/header}
@@ -281,7 +284,7 @@ class TemplateEngine
      *            原模板内容
      * @return void
      */
-    protected function processLayoutTag(string &$content): void
+    protected function processLayoutDefine(string &$content): void
     {
         $pattern = $this->getTagPattern('layout\s+(.+?)');
         $newLayout = null;
@@ -290,20 +293,7 @@ class TemplateEngine
             return '';
         }, $content);
         if ($newLayout !== null) {
-            if ($this->layoutFilePath !== null) {
-                // 已经定义过layout了
-                $content = @file_get_contents($this->sourceFilePath);
-                if ($content === false) {
-                    throw new TemplateException('读取模板源文件' . $this->sourceFilePath . '失败');
-                }
-                $content = preg_replace($pattern, '', $content);
-            }
             $this->setLayout($newLayout);
-            $layoutContent = @file_get_contents($this->layoutFilePath);
-            if ($layoutContent === false) {
-                throw new TemplateException('读取布局源文件' . $this->layoutFilePath . '失败');
-            }
-            $content = str_replace('{content}', $content, $layoutContent);
         }
     }
 
@@ -321,9 +311,17 @@ class TemplateEngine
         $cacheDir = $this->cacheDir;
         $forceRebuild = $this->forceRebuild;
         $engineClass = get_class($this);
-        while (preg_match($pattern, $content) != 0) {
-            $content = preg_replace_callback($pattern, function ($match) use ($baseDir, $cacheDir, $forceRebuild, $engineClass) {
-                $subTemplate = new $engineClass($match[1], $baseDir, $cacheDir);
+        $templateName = $this->templateName;
+        if (preg_match($pattern, $content) != 0) {
+            $content = preg_replace_callback($pattern, function ($match) use ($baseDir, $cacheDir, $forceRebuild, $engineClass, $templateName) {
+                $subTemplateName = $match[1];
+                if ((substr($subTemplateName, 0, 2) == './') || (substr($subTemplateName, 0, 3) == '../')) {
+                    $baseName = dirname($templateName);
+                    if ($baseName != '.') {
+                        $subTemplateName = $baseName . '/' . $subTemplateName;
+                    }
+                }
+                $subTemplate = new $engineClass($subTemplateName, $baseDir, $cacheDir);
                 $subTemplate->setForceRebuild($forceRebuild);
                 return $subTemplate->getTemplateSource();
             }, $content);

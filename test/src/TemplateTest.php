@@ -22,6 +22,9 @@ class TemplateTest extends TestCase
                 'include'
             ],
             [
+                'include2'
+            ],
+            [
                 'template'
             ],
             [
